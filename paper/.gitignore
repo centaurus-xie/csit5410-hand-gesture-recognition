@@ -1,0 +1,14 @@
+# Generated LaTeX files; keep source figures (including PDF figures).
+.build/
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+/main.pdf
+/upstream/Template_ISBI_latex.pdf
+.DS_Store
