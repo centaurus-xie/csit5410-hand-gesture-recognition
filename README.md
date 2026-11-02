@@ -4,7 +4,7 @@ A three-person CSIT5410 Recognition Systems group project: recognize static numb
 
 ## Project status
 
-**Planning and data selection.** The repository currently contains the ISBI paper starter. Recognition code, training scripts, a web interface, and dependency lockfiles have not been implemented yet. No accuracy or latency results are available.
+**Phase 1 scaffold implemented.** The repository now includes a local browser workbench, shared geometric features, image-to-landmark extraction, participant-separated SVM/MLP training, and browser MLP inference. The initial interface supports one hand only. Real image data and Cantonese recordings are still pending; no real-data recognition results are claimed. See [the phase report](docs/phase-1-report.md).
 
 ## MVP scope
 
@@ -34,9 +34,9 @@ MediaPipe provides 21 estimated 3D landmarks per hand: 63 coordinate values. We 
 | Landmarks | Pretrained MediaPipe Hand Landmarker |
 | Normalization | Wrist-relative coordinates and palm-scale normalization |
 | Geometric features | Finger joint angles, finger spread, normalized fingertip distances, palm normal |
-| Baseline | Standardized features with an SVM |
-| Deployment candidate | Small MLP; choose after comparison with the baseline |
-| Offline processing | Python, NumPy, scikit-learn; PyTorch if needed for the MLP |
+| Baseline | Standardized features with an SVM (implemented offline) |
+| Browser classifier | scikit-learn MLP (64, 32), exported as JSON; training data pending |
+| Offline processing | Python, NumPy, scikit-learn |
 | Browser interface | TypeScript + Vite; browser-side inference where feasible |
 | Audio | Prerecorded Cantonese numbers for the MVP |
 
@@ -71,13 +71,14 @@ Split by person where identifiers exist. Keep every original image and its augme
 
 ```text
 .
-├── README.md
-└── paper/
-    ├── main.tex          # Paper entry point
-    ├── sections/         # Draft section placeholders
-    ├── references.bib
-    ├── figures/
-    └── upstream/         # Unmodified course template and provenance
+├── web/                  # TypeScript browser workbench
+├── src/gesture/          # Python features, extraction, training
+├── scripts/              # Local asset setup and model parity check
+├── tests/                # Geometry, split isolation, state tests
+├── data/README.md        # Manifest and JSONL schema
+├── models/README.md      # Model artifact conventions
+├── docs/                 # Architecture and stage reports
+└── paper/                # ISBI paper starter
 ```
 
 See [paper/README.md](paper/README.md) for the complete paper workflow and template provenance.
@@ -91,7 +92,54 @@ git clone git@github.com:centaurus-xie/csit5410-hand-gesture-recognition.git
 cd csit5410-hand-gesture-recognition
 ```
 
-Application setup instructions will be added once dependencies are selected and tested. Use a dedicated project environment rather than installing into a shared Python base environment.
+### Browser workbench
+
+Use a modern Node installation (tested locally with Node 25.9.0):
+
+```bash
+npm ci
+npm run assets
+npm run dev
+```
+
+Open `http://127.0.0.1:5173` and allow camera access. The first asset preparation downloads the official MediaPipe detector and copies WASM locally; camera frames are processed locally. Use localhost or HTTPS for camera access. The app has no backend or upload endpoint.
+
+You can inspect landmarks and geometric features without a number classifier. Enter a participant, session, and label to save samples, then export JSONL before closing the page. Sample collection is in memory; no raw image capture is included. Until a model is trained, the interface explicitly reports that no classifier is loaded.
+
+### Python tools
+
+Use Python **3.11 or 3.12** in a project environment. On this machine, a Python 3.12 `.venv` has already been created; activate it with `source .venv/bin/activate`. For a new checkout:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[images,dev]'
+```
+
+The optional `requirements-macos-py312.txt` records the exact packages used for local validation. It is an environment snapshot, not a cross-platform lockfile.
+
+Prepare an image manifest and participant splits as described in [data/README.md](data/README.md), then run:
+
+```bash
+gesture-extract data/manifest.csv --output data/samples.jsonl
+gesture-train data/samples.jsonl --splits data/splits.json --classifier svm --features combined --output artifacts/svm
+gesture-train data/samples.jsonl --splits data/splits.json --classifier mlp --features combined --output artifacts/mlp
+node --import tsx scripts/check-model-parity.mjs artifacts/mlp
+```
+
+Repeat experiments with `--features coordinates` and `--features geometry` on the same splits. The SVM is an offline baseline. Load `artifacts/mlp/classifier.json` through the browser's model picker for number recognition. The 0.8 score threshold and 600 ms hold are prototype defaults, not calibrated accuracy guarantees. Unknown gestures can still receive high confidence; evaluate rejection on real negatives before use.
+
+Add licensed/consented Cantonese recordings to `web/public/audio/1.mp3` through `10.mp3`. Missing audio produces a visible error. Audio is not generated or bundled.
+
+### Checks
+
+```bash
+npm test
+npm run build
+python -m pytest -q
+```
+
+The production build is written to `web/dist/`. Local datasets, trained models, recordings, virtual environments, and downloaded WASM/model assets are ignored by Git.
 
 To build the existing paper, install a TeX distribution with `latexmk`, then run from the repository root:
 
@@ -124,9 +172,10 @@ Suggested workstreams, with ownership to be agreed:
 
 - [ ] Agree on an illustrated 1–10 gesture specification, including regional variants and hand count.
 - [ ] Verify and select image data; record source and reuse conditions.
-- [ ] Establish a reproducible development environment.
+- [x] Add project dependency configuration and a tested local environment (see packaging caveat in phase report).
 - [ ] Run landmark extraction and inspect failures by class.
-- [ ] Implement feature sets and train a baseline classifier.
+- [x] Implement feature sets and baseline training/export tools.
+- [ ] Train and evaluate classifiers on approved real data.
 - [ ] Evaluate unseen participants and unknown gestures.
 - [ ] Integrate the browser demo and Cantonese audio.
 - [ ] Complete the paper, presentation, and references.

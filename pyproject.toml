@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "csit5410-gesture"
+version = "0.1.0"
+description = "Static number gesture feature engineering and training"
+requires-python = ">=3.11,<3.13"
+dependencies = ["numpy>=1.26,<3", "scikit-learn>=1.5,<2", "joblib>=1.4,<2"]
+
+[project.optional-dependencies]
+images = ["mediapipe==0.10.21", "opencv-contrib-python>=4.8,<4.12"]
+dev = ["pytest>=8,<9"]
+
+[project.scripts]
+gesture-extract = "gesture.extract:main"
+gesture-train = "gesture.train:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

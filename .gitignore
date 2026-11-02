@@ -221,3 +221,16 @@ __marimo__/
 
 # macOS metadata
 .DS_Store
+
+# Application dependencies and generated local assets
+node_modules/
+web/dist/
+web/public/vendor/
+web/public/models/*.task
+web/public/models/*.json
+web/public/audio/*.mp3
+data/*
+!data/README.md
+models/*
+!models/README.md
+artifacts/
