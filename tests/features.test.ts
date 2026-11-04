@@ -1,0 +1,11 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {features} from '../web/src/features.ts';
+import {StablePrediction,validateModel} from '../web/src/model.ts';
+const points=Array.from({length:21},(_,i)=>({x:Math.sin(i*.7)*.04,y:i*.01,z:Math.cos(i*.3)*.01}));
+test('feature dimensions and translation/scale invariance',()=>{const a=features(points,'Right');const b=features(points.map(p=>({x:p.x*3+1,y:p.y*3-2,z:p.z*3+.5})),'Right');assert.equal(a.geometry.length,20);assert.equal(a.combined.length,83);a.combined.forEach((v,i)=>assert.ok(Math.abs(v-b.combined[i])<1e-7));});
+test('mirrored left hand canonicalizes to right',()=>{const a=features(points,'Right'),b=features(points.map(p=>({...p,x:-p.x})),'Left');a.combined.forEach((v,i)=>assert.ok(Math.abs(v-b.combined[i])<1e-10));});
+test('invalid landmarks fail closed',()=>{assert.throws(()=>features([],'Right'));assert.throws(()=>features(Array(21).fill({x:0,y:0,z:0}),'Right'));});
+test('stability, no repeated speech, and release rearm',()=>{const g=new StablePrediction();assert.equal(g.update('1',0),null);assert.equal(g.update('1',599),null);assert.equal(g.update('1',600),'1');assert.equal(g.update('1',1600),null);g.update(null,1700);g.update(null,2050);g.update('1',2100);assert.equal(g.update('1',2700),'1');});
+test('short missing-hand gap does not repeat audio',()=>{const g=new StablePrediction();g.update('2',0);g.update('2',600);g.update(null,650);g.update('2',700);assert.equal(g.update('2',1400),null);assert.equal(g.isStable('2',1400),true);});
+test('malformed classifier rejected',()=>{assert.throws(()=>validateModel({feature_version:'other'}));});
