@@ -1,0 +1,21 @@
+{
+  "name": "csit5410-gesture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite web --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build web",
+    "preview": "vite preview web --host 127.0.0.1",
+    "assets": "node scripts/prepare-assets.mjs",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.21"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vite": "^6.4.1",
+    "tsx": "^4.20.0",
+    "@types/node": "^22.0.0"
+  }
+}

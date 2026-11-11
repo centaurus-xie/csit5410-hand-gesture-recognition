@@ -1,0 +1,13 @@
+import {cp, mkdir, writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+const root = new URL('../', import.meta.url);
+await mkdir(new URL('web/public/vendor/wasm/', root), {recursive:true});
+await cp(new URL('node_modules/@mediapipe/tasks-vision/wasm/',root),new URL('web/public/vendor/wasm/',root),{recursive:true});
+const url='https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+const response=await fetch(url);
+if(!response.ok) throw new Error(`Model download failed: ${response.status}`);
+const bytes=Buffer.from(await response.arrayBuffer());
+if(bytes.length<1000000) throw new Error('Unexpected model download size');
+await mkdir(new URL('web/public/models/',root),{recursive:true});
+await writeFile(new URL('web/public/models/hand_landmarker.task',root),bytes);
+console.log(`Prepared local WASM and model at ${fileURLToPath(new URL('web/public/',root))}`);
