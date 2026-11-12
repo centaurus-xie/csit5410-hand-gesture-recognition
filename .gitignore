@@ -231,6 +231,8 @@ web/public/models/*.json
 web/public/audio/*.mp3
 data/*
 !data/README.md
+!data/Dataset/
+!data/Dataset/**
 models/*
 !models/README.md
 artifacts/
