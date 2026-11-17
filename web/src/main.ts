@@ -7,21 +7,25 @@ $('app').innerHTML=`
 <header><div class="brand">gesture<span style="color:#819b61"> /</span></div><div class="tag">CSIT5410 · Recognition systems</div></header>
 <main><section class="intro"><div><div class="tag">01 / Static number studio</div><h1>A gesture. A voice.</h1></div><p>Explore the shape of a number.<br>One hand, a clear view, and a moment to hold.</p></section>
 <div class="workspace"><section><div class="camera"><div class="live-label" id="camera-state">CAMERA OFF</div><video id="video" autoplay playsinline muted></video><canvas id="overlay"></canvas><div class="empty" id="empty"><span>✳</span><h2>Your hand goes here.</h2><p>Start the camera to explore your hand landmarks.<br>Camera frames stay in this browser.</p></div></div><div class="toolbar"><button id="start">Start camera</button><button class="secondary" id="stop" disabled>Stop camera</button></div><p id="message" role="status" aria-live="polite"></p></section>
-<aside class="panel"><div class="tag">Recognition</div><div class="result" id="result">—</div><p class="status" id="status" role="status">Model not loaded. Explore landmarks or collect samples first.</p><div class="metrics"><div><span class="tag">Confidence</span><strong id="confidence">—</strong></div><div><span class="tag">Frame time</span><strong id="latency">—</strong></div></div><div class="divider"></div><button id="speak" disabled>Play Cantonese</button><p class="small">Add your recordings to enable playback. No audio is bundled yet.</p><label><input type="checkbox" id="auto">Speak each stable prediction</label><div class="divider"></div><label class="model-label">Load trained classifier (.json)<input id="model" type="file" accept=".json"></label><p class="small" id="model-status">No trained classifier loaded</p></aside></div>
-<div class="bottom"><section class="panel"><div class="tag">Feature explorer</div><h2>Read the shape.</h2><p class="small">Finger bend · 0 = straight, 1 = folded</p><div class="bars">${['Thumb','Index','Middle','Ring','Pinky'].map((x,i)=>`<div class="bar"><div class="track"><div class="fill" id="bend-${i}"></div></div>${x}</div>`).join('')}</div><p class="small" id="normal">Palm normal: —</p><p class="small">63 coordinates + 20 geometric features · single hand</p></section><section class="panel"><div class="tag">Sample collection</div><h2>Build a shared vocabulary.</h2><div class="fields"><label>Participant<input id="person" placeholder="p01" maxlength="40"></label><label>Session<input id="session" placeholder="s01" maxlength="40"></label><label>Label<select id="label">${Array.from({length:10},(_,i)=>`<option>${i+1}</option>`).join('')}<option>unknown</option></select></label></div><div class="toolbar"><button id="capture" disabled>Save sample</button><button class="secondary" id="export" disabled>Export JSONL (0)</button></div><p class="notice">One click = one sample. Lower your hand and form the gesture again between captures. Export before leaving.</p></section></div><footer><span>LOCAL PROCESSING / NO FRAME UPLOADS</span><span>Prototype · Single-hand poses</span></footer></main>`;
+<aside class="panel"><div class="tag">Recognition</div><div class="result" id="result">—</div><p class="status" id="status" role="status">Loading default model…</p><div class="metrics"><div><span class="tag">Confidence</span><strong id="confidence">—</strong></div><div><span class="tag">Frame time</span><strong id="latency">—</strong></div></div><div class="divider"></div><label>Voice language<select id="voice"><option value="yue">廣東話 / Cantonese</option><option value="en">English</option><option value="zh">普通话 / Mandarin</option></select></label><div class="toolbar"><button id="speak" disabled>Speak number</button><button id="preview-voice" class="secondary">Preview voice</button></div><p class="small">Offline voice packs · numbers 0–10</p><label><input type="checkbox" id="auto">Speak each stable prediction</label><div class="divider"></div><label class="model-label">Change model (.json)<input id="model" type="file" accept=".json"></label><p class="small" id="model-status">Loading default model…</p><button id="default-model" class="secondary">Use latest default model</button></aside></div>
+<div class="bottom"><section class="panel"><div class="tag">Feature explorer</div><h2>Read the shape.</h2><p class="small">Finger bend · 0 = straight, 1 = folded</p><div class="bars">${['Thumb','Index','Middle','Ring','Pinky'].map((x,i)=>`<div class="bar"><div class="track"><div class="fill" id="bend-${i}"></div></div>${x}</div>`).join('')}</div><p class="small" id="normal">Palm normal: —</p><p class="small">63 coordinates + 20 geometric features · single hand</p></section><section class="panel"><div class="tag">Sample collection</div><h2>Build a shared vocabulary.</h2><div class="fields"><label>Participant<input id="person" placeholder="p01" maxlength="40"></label><label>Session<input id="session" placeholder="s01" maxlength="40"></label><label>Label<select id="label">${Array.from({length:11},(_,i)=>`<option>${i}</option>`).join('')}<option>unknown</option></select></label></div><div class="toolbar"><button id="capture" disabled>Save sample</button><button class="secondary" id="export" disabled>Export JSONL (0)</button></div><p class="notice">One click = one sample. Lower your hand and form the gesture again between captures. Export before leaving.</p></section></div><footer><span>LOCAL PROCESSING / NO FRAME UPLOADS</span><span>Prototype · Single-hand poses</span></footer></main>`;
 const video=$<HTMLVideoElement>('video'),canvas=$<HTMLCanvasElement>('overlay'),ctx=canvas.getContext('2d')!;
 const drawing=new DrawingUtils(ctx), gate=new StablePrediction();
 let landmarker:HandLandmarker|undefined,stream:MediaStream|undefined,running=false,starting=false,raf=0,lastVideoTime=-1,lastInference=0;
 let model:Model|undefined, latest:{points:Point[];hand:string;time:number}|null=null,accepted:string|null=null;
 const samples:object[]=[];let lastCapture=-Infinity;let audio:HTMLAudioElement|null=null;
+const voice=$<HTMLSelectElement>('voice');
+try{const saved=localStorage.getItem('gesture-voice');if(saved && ['yue','en','zh'].includes(saved))voice.value=saved;}catch{}
+voice.onchange=()=>{audio?.pause();try{localStorage.setItem('gesture-voice',voice.value);}catch{}};
+$('preview-voice').onclick=()=>void speak('1');
 const message=(s:string)=>$('message').textContent=s;
 function clearPrediction(){accepted=null;$('result').textContent='—';$('confidence').textContent='—';$<HTMLButtonElement>('speak').disabled=true;}
 function clearFeatures(){for(let i=0;i<5;i++)$('bend-'+i).style.height='0%';$('normal').textContent='Palm normal: —';}
 function stop(){running=false;cancelAnimationFrame(raf);stream?.getTracks().forEach(t=>t.stop());stream=undefined;video.srcObject=null;latest=null;lastVideoTime=-1;gate.reset();clearPrediction();clearFeatures();audio?.pause();ctx.clearRect(0,0,canvas.width,canvas.height);$('empty').hidden=false;$('camera-state').textContent='CAMERA OFF';$<HTMLButtonElement>('start').disabled=false;$<HTMLButtonElement>('stop').disabled=true;$<HTMLButtonElement>('capture').disabled=true;$('latency').textContent='—';}
 async function speak(label:string){
- if(!/^([1-9]|10)$/.test(label))return;
- audio?.pause();audio=new Audio(`${import.meta.env.BASE_URL}audio/${label}.mp3`);
- try{await audio.play();message('');}catch{message(`Audio unavailable. Add a Cantonese recording at public/audio/${label}.mp3.`);}
+ if(!/^([0-9]|10)$/.test(label))return;
+ audio?.pause();audio=new Audio(`${import.meta.env.BASE_URL}audio/${voice.value}/${label}.wav`);
+ try{await audio.play();message('');}catch{message(`Audio unavailable. Check the selected voice pack at public/audio/${voice.value}/${label}.wav.`);}
 }
 function frame(now:number){
  if(!running)return;
@@ -72,6 +76,38 @@ $('capture').onclick=()=>{
  $<HTMLButtonElement>('export').disabled=false;$('export').textContent=`Export JSONL (${samples.length})`;message(`Saved sample ${samples.length}. Export to keep your work.`);
 };
 $('export').onclick=()=>{const url=URL.createObjectURL(new Blob([samples.map(s=>JSON.stringify(s)).join('\n')+'\n'],{type:'application/x-ndjson'}));const a=document.createElement('a');a.href=url;a.download=`gesture-samples-${Date.now()}.jsonl`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-$<HTMLInputElement>('model').onchange=async e=>{const file=(e.target as HTMLInputElement).files?.[0];if(!file)return;try{if(file.size>10_000_000)throw Error('Model exceeds 10 MB');const next=validateModel(JSON.parse(await file.text()));model=next;gate.reset();clearPrediction();$('model-status').textContent=`${model.classes.length} classes · ${model.feature_set} features`;$('status').textContent='Model loaded. Start the camera and hold a gesture.';message('');}catch(err){message(`Model not loaded: ${err instanceof Error?err.message:String(err)}`);}};
+let modelRequest=0;
+function installModel(next:Model,name:string){
+ model=next;audio?.pause();gate.reset();clearPrediction();
+ $('model-status').textContent=`${name} · ${next.classes.join(', ')} · ${next.feature_set}`;
+ $('status').textContent='Model ready. Start the camera and hold a gesture.';
+}
+async function loadDefault(){
+ const request=++modelRequest;
+ $('model-status').textContent='Loading default model…';
+ try{
+  const response=await fetch(`${import.meta.env.BASE_URL}models/default.json`,{cache:'no-store'});
+  if(!response.ok)throw Error(`HTTP ${response.status}`);
+  const next=validateModel(await response.json());
+  if(request!==modelRequest)return;
+  installModel(next,'Default model');message('');
+ }catch(err){if(request!==modelRequest)return;
+  $('model-status').textContent=model?'Default unavailable; previous model retained.':'Default unavailable. Choose a model file below or publish a default.';
+  if(!model)$('status').textContent='Choose a trained model to enable recognition.';
+ }
+}
+$('default-model').onclick=()=>void loadDefault();
+$<HTMLInputElement>('model').onchange=async e=>{
+ const file=(e.target as HTMLInputElement).files?.[0];if(!file)return;
+ const request=++modelRequest;
+ try{
+  if(file.size>10_000_000)throw Error('Model exceeds 10 MB');
+  const next=validateModel(JSON.parse(await file.text()));
+  if(request!==modelRequest)return;
+  installModel(next,file.name);message('');
+ }catch(err){if(request===modelRequest)message(`Model not loaded; previous model retained if available: ${err instanceof Error?err.message:String(err)}`);}
+ (e.target as HTMLInputElement).value='';
+};
+void loadDefault();
 window.addEventListener('pagehide',()=>{stop();landmarker?.close();});
 window.addEventListener('beforeunload',e=>{if(samples.length){e.preventDefault();}});

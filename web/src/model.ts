@@ -5,7 +5,7 @@ export function validateModel(v:unknown):Model{
  if(!m || m.feature_version!==FEATURE_VERSION)throw Error('Unsupported feature version');
  const size={coordinates:63,geometry:20,combined:83}[m.feature_set];
  const finite=(a:unknown):a is number[]=>Array.isArray(a)&&a.every(x=>typeof x==='number'&&Number.isFinite(x));
- if(!size || !Array.isArray(m.classes)||m.classes.length<3||new Set(m.classes).size!==m.classes.length||m.classes.some(x=>!/^([1-9]|10|unknown)$/.test(x)))throw Error('Invalid model classes');
+ if(!size || !Array.isArray(m.classes)||m.classes.length<3||new Set(m.classes).size!==m.classes.length||m.classes.some(x=>!/^([0-9]|10|unknown)$/.test(x)))throw Error('Invalid model classes');
  if(!finite(m.mean)||!finite(m.scale)||m.mean.length!==size||m.scale.length!==size||m.scale.some(x=>x<=0))throw Error('Invalid model scaler');
  if(!Array.isArray(m.weights)||!Array.isArray(m.biases)||m.weights.length!==m.biases.length||!m.weights.length||m.weights.length>8)throw Error('Invalid layers');
  let input=size;

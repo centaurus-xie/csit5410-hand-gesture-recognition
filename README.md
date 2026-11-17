@@ -194,3 +194,23 @@ Suggested workstreams, with ownership to be agreed:
 - [Course-provided ISBI template](https://github.com/HenryVu27/ISBI2026/tree/main/ISBI_template-master/ISBI_template-master)
 
 The license in `paper/` belongs to the upstream template and does not license the whole project. Dataset and third-party asset terms must be checked separately before redistribution.
+
+### Default model and multilingual speech
+
+The page loads `web/public/models/default.json` on startup (without using a cached copy).
+Use **Change model** to try another local JSON, or **Use latest default model** to restore the published default. Local overrides last for this page session.
+
+```sh
+# Publish the chosen trained MLP for the website:
+npm run model:publish -- artifacts/pilot/mlp-combined/classifier.json
+# Or select the most recently modified valid classifier.json under artifacts (excluding smoke):
+npm run model:publish
+# Generate Cantonese, English and Mandarin 0–10 audio on macOS:
+npm run audio:generate
+```
+
+Voice language is remembered on this browser. **Preview voice** plays “one” without requiring a camera. Both manual and automatic number speech use the selected language. Audio does not change recognition classes.
+
+This is a static application with offline Python training, not a server backend. Model publication and audio generation supply the static assets. Generated assets are ignored by Git: teammates must generate them or receive copies of `web/public/models/default.json` and `web/public/audio/{yue,en,zh}/`. Windows/Linux can play these WAV files without macOS; generation uses installed macOS Sinji/Samantha/Tingting voices. Run asset preparation before building for distribution.
+
+See [Single-hand isolated sign extension](docs/isolated-signs.md) for the proposed vocabulary, capture format and model interface.
