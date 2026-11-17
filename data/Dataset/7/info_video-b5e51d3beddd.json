@@ -1,0 +1,17 @@
+{
+  "output_dir": "D:\\CSIT5410\\csit5410-hand-gesture-recognition\\data\\Dataset\\7",
+  "manifest": "D:\\CSIT5410\\csit5410-hand-gesture-recognition\\data\\Dataset\\7\\frames_video-b5e51d3beddd.csv",
+  "source_video": "C:\\Users\\86138\\Desktop\\v\\7\\7_B.mp4",
+  "video_id": "video-b5e51d3beddd429e9c5f35141b40df6b",
+  "saved_images": 32,
+  "label": "7",
+  "image_size": "100x100",
+  "resize_mode": "stretch",
+  "sample_fps": 5.0,
+  "start_seconds": 0.0,
+  "end_seconds": null,
+  "reported_video_fps": 30.0,
+  "first_timestamp_sec": 0.0,
+  "last_timestamp_sec": 6.2,
+  "fps_estimated_samples": 0
+}

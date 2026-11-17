@@ -231,6 +231,8 @@ web/public/models/*.json
 web/public/audio/*.mp3
 data/*
 !data/README.md
+# Track the team's collected image dataset and frame metadata.
+!data/Dataset/
 models/*
 !models/README.md
 artifacts/
