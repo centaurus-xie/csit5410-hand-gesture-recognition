@@ -23,9 +23,9 @@ def main():
     ids = [r['sample_id'] for r in rows]
     if len(set(ids)) != len(ids):
         parser.error('Duplicate sample_id in manifest')
-    valid_labels = {str(n) for n in range(1,11)} | {'unknown'}
+    valid_labels = {str(n) for n in range(0,11)} | {'unknown'}
     if any(not all(r[k].strip() for k in required) or r['label'] not in valid_labels for r in rows):
-        parser.error('Metadata must be nonempty; labels must be 1–10 or unknown')
+        parser.error('Metadata must be nonempty; labels must be 0–10 or unknown')
     args.output.parent.mkdir(parents=True,exist_ok=True)
     options = vision.HandLandmarkerOptions(base_options=python.BaseOptions(model_asset_path=str(args.model),delegate=python.BaseOptions.Delegate.CPU),num_hands=2,running_mode=vision.RunningMode.IMAGE,min_hand_detection_confidence=.6,min_hand_presence_confidence=.6)
     failures = []

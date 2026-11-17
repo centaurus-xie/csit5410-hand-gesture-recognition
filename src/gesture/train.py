@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from .features import FEATURE_VERSION, features
 
-VALID_LABELS = {str(i) for i in range(1,11)} | {'unknown'}
+VALID_LABELS = {str(i) for i in range(0,11)} | {'unknown'}
 
 def load_splits(path, splits, feature_set):
     groups = {key:set(splits.get(key,[])) for key in ('train','val','test')}

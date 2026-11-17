@@ -7,7 +7,9 @@
     "build": "tsc --noEmit && vite build web",
     "preview": "vite preview web --host 127.0.0.1",
     "assets": "node scripts/prepare-assets.mjs",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "model:publish": "node --import tsx scripts/publish-model.mjs",
+    "audio:generate": "python3 scripts/generate-audio.py"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "0.10.21"

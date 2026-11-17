@@ -236,3 +236,9 @@ data/*
 models/*
 !models/README.md
 artifacts/
+
+# Locally generated Cantonese speech
+web/public/audio/*.wav
+
+web/public/audio/**/*.wav
+web/public/audio/voices.json
