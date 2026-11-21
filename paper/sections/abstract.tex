@@ -1,2 +1,13 @@
-\textit{Draft placeholder: summarize the problem, implemented method, measured
-results, and main conclusion after completing the experiments.}
+Hand landmarks provide a compact representation for recognizing number
+gestures from an ordinary webcam. We compare normalized coordinates, explicit
+hand geometry, and their combination using radial-basis support vector machines
+and small multilayer perceptrons. The task covers ten project-defined digit
+labels and a class of non-target poses. A pretrained hand detector retained
+1,825 of 2,260 candidate images, including augmented copies. On 249 held-out
+original photographs with valid landmarks, the combined-feature perceptron
+classified 246 correctly (98.8\% accuracy, 96.1\% macro-$F_1$). The split groups
+images by original photograph and leaves signer identity uncontrolled. We
+export the perceptron to a browser demonstration that converts confirmed digit
+predictions into spoken numbers or musical notes. The results quantify
+classification after landmark extraction and motivate independent evaluation of
+the full webcam pipeline.

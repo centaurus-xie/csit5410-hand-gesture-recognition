@@ -1,8 +1,27 @@
 \section{Introduction}
 \label{sec:introduction}
-\textit{Draft placeholder: define the recognition task, intended application,
-gesture classes, and project scope. Explain the team's contributions.}
 
-% Uncomment when ready to include the recommended code link:
-% Project repository:
-% \url{https://github.com/centaurus-xie/csit5410-hand-gesture-recognition}.
+A camera can provide input for an interface through simple hand gestures. In
+a live system, however, the hand must first be visible and detected, and the
+output must remain useful as the user changes pose. A classifier can score
+highly on cropped images with valid landmarks while the live system still
+misses gestures because of framing, occlusion, or a short hold. We study these
+stages separately in a prototype that turns recognized digits into speech or
+music.
+
+The task is to recognize a static, one-hand pose corresponding to a digit
+from 0 to 9, or to identify it as belonging to a small set of non-target
+poses. The digit labels reflect the project's choice of hand shapes. The
+primary research question is whether explicit geometry, including finger
+bending and palm orientation, provides useful information beyond normalized
+landmark coordinates. To test this, we train two lightweight classifiers with
+three input representations on the same split. We also audit the hand
+detector and apply the browser's confidence rule to the retained still images
+to show where the reported classification accuracy applies.
+
+The implementation uses the pretrained MediaPipe hand tracker
+\cite{zhang2020mediapipe,mediapipehandlandmarker}. The project implements the
+hand representation, classifier training and comparison, and the browser
+decision and feedback logic. Code and experiment instructions are available in
+the \href{https://github.com/centaurus-xie/csit5410-hand-gesture-recognition}
+{project repository}.

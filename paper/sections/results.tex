@@ -1,18 +1,127 @@
 \section{Results}
 \label{sec:results}
-\subsection{Experimental setup}
-\textit{Draft placeholder: specify hardware, hyperparameters, evaluation
-metrics, and the baseline used for comparison.}
 
-\subsection{Evaluation and analysis}
-\textit{Draft placeholder: report measured results, comparisons, ablations,
-and representative failure cases. Do not insert estimated performance as
-experimental results.}
+\subsection{Evaluation protocol}
 
-% Example figure insertion after adding a real figure to figures/:
-% \begin{figure}[t]
-%   \centering
-%   \includegraphics[width=\columnwidth]{confusion_matrix.pdf}
-%   \caption{Confusion matrix on the held-out test set.}
-%   \label{fig:confusion}
-% \end{figure}
+The expanded experiment starts with 2,080 original photographs and 180
+augmented derivatives. All variants of an original photograph belong to a
+single group. After landmark extraction, we assign original groups within
+each class to training, validation, and test partitions (approximately
+70/15/15, seed 42). We include derivatives only when their original is
+assigned to training. The resulting split contains 1,268 training images
+(1,166 originals and 102 derivatives), 249 validation originals, and 249 test
+originals. The other 59 usable derivatives are excluded because their
+originals are held out. Each classifier uses the same split. Signer identifiers are
+unavailable for the inherited data, so the partition controls for the
+original photo and may include the same signer on both sides.
+
+We report landmark yield over all inputs, classification accuracy over
+the retained test images, and macro-$F_1$ over the 11 classes. Macro-$F_1$
+gives each class equal weight. These metrics use the model's highest-scoring
+class before confidence filtering or temporal confirmation.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{extraction-yield.pdf}
+  \caption{Landmark extraction by class for original photos. Bars show the
+  number of usable and rejected originals. The three locally added digits have
+  six originals each before extraction.}
+  \label{fig:yield}
+\end{figure}
+
+\subsection{Landmark yield}
+
+The detector retained 1,825 of 2,260 images (80.8\%). It detected zero hands
+in 430 images and two hands in five. Restricting the denominator to original
+photographs gives 1,664 of 2,080 (80.0\%). Yield varies by class
+(Fig.~\ref{fig:yield}). The detector retained 120 of 206 original photographs
+for digit 2 (58.3\%), compared with 207 of 207 for digit 5. Digit 9 has only
+five usable originals. These differences affect the signal available to the
+classifier and show why the classifier score alone cannot characterize the
+full recognition system.
+
+\subsection{Representation and classifier comparison}
+
+\begin{table}[t]
+  \centering
+  \caption{Performance on the shared validation and test splits. Each split
+  contains 249 original images with landmarks. All results are percentages. The $F_1$ columns report macro-$F_1$.}
+  \label{tab:models}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{llrrrr}
+  \hline
+  & & \multicolumn{2}{c}{Validation} & \multicolumn{2}{c}{Test} \\
+  Model & Features & Acc. & $F_1$ & Acc. & $F_1$ \\
+  \hline
+  SVM & Coordinates & 98.39 & 80.78 & 96.39 & 70.41 \\
+  SVM & Geometry    & 98.80 & 81.36 & 97.19 & 84.47 \\
+  SVM & Combined    & 98.80 & 81.11 & 97.59 & 71.29 \\
+  MLP & Coordinates & 99.20 & 90.39 & 97.99 & 83.61 \\
+  MLP & Geometry    & 98.80 & 81.26 & 97.19 & 84.68 \\
+  MLP & Combined    & 99.20 & 81.61 & 98.80 & 96.14 \\
+  \hline
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:models} shows that the effect of explicit geometry depends on
+the classifier and metric. Geometry alone improves test macro-$F_1$ over
+coordinates alone for both models in this split. Concatenating coordinates
+and geometry gives the MLP the highest test accuracy and macro-$F_1$ among
+the six configurations. For the SVM, concatenation improves accuracy relative
+to geometry alone while lowering macro-$F_1$. The coordinate-only MLP has a
+higher validation macro-$F_1$ than the combined MLP. Given the small support for
+some test classes and the different ordering across splits, the measurements
+support reporting the comparison for this dataset, while the relative merit
+of the inputs needs confirmation with additional signers.
+
+The browser uses the combined MLP. It correctly classifies 246 of the
+249 retained test photographs. Its three errors are $0\to9$, $1\to5$ and
+$3\to4$. All 47 test examples from the two non-target pose families are
+assigned to \texttt{unknown}. The test has one photograph for each of digits
+6, 7 and 9. Each is correct on the test split, and the sole validation
+examples for 7 and 9 are misclassified. Classes with one test example can
+therefore have a large effect on macro-$F_1$.
+
+\subsection{Output filtering and deployment check}
+
+\begin{table}[t]
+  \centering
+  \caption{Post hoc application of the deployed frame confidence rule to
+  held-out images with valid landmarks. Each row includes 202 digit images
+  and 47 non-target images.}
+  \label{tab:reject}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{lrrrr}
+  \hline
+  Split & Correct & Wrong & Digit reject & Other reject \\
+  \hline
+  Validation & 198 & 1 & 3 & 47 \\
+  Test       & 198 & 3 & 1 & 47 \\
+  \hline
+  \end{tabular}
+\end{table}
+
+As a deployment diagnostic, we apply the browser's per-frame rule to the two
+held-out image splits. The rule emits a digit when the maximum probability is
+at least 0.8 and its label is a digit. On the test split it returns 201
+digit outputs, of which 198 are correct (98.5\% of emitted digits). One
+digit photo is rejected, and all 47 non-target images abstain
+(Table~\ref{tab:reject}). This check evaluates still images. A measurement
+of live confirmation and false audio triggers requires sequences from new
+users. The browser and Python implementations agree within $2.22\times10^{-16}$
+in maximum absolute probability error on ten exported validation vectors.
+
+\subsection{Extension to isolated video signs}
+
+The separate video path reads a manually delimited clip and classifies an
+isolated sign from hand landmarks alone. The prototype vocabulary uses
+filming references from HKU-HKSLLEX~\cite{hku_hksllex} for THANK-YOU,
+NEXT-TIME and GOODBYE. We resample 20 geometric features and two camera-plane
+wrist displacements at 16 time points. Wrist displacements are relative to
+the first valid frame and scaled by median palm size. The resulting
+352-element vector is the input to a small MLP. The current verification uses
+synthetic landmark sequences for feature and prediction parity. The
+comparison to a single-frame baseline on recorded, signer-disjoint video
+clips remains an experimental objective.
