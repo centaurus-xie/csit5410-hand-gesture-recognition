@@ -72,6 +72,74 @@ export function motionVector(frames: MotionFrame[], sampledCount: number): numbe
   }).flat();
 }
 
+export function readMotionFrame(result: HandLandmarkerResult, time: number, aspect: number): MotionFrame | undefined {
+    if (result.landmarks.length !== 1 || result.worldLandmarks.length !== 1) return;
+    const [image] = result.landmarks;
+    const [world] = result.worldLandmarks;
+    const hand = result.handedness[0]?.[0]?.categoryName ?? '';
+    const wrist = image[0], middle = image[9];
+    try {
+      return {
+        time, hand,
+        wrist: [wrist.x * aspect, wrist.y],
+        palm_size: Math.hypot((middle.x - wrist.x) * aspect, middle.y - wrist.y),
+        geometry: features(world, hand).geometry,
+      };
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+      // Count degenerate landmarks as missing samples.
+    }
+}
+
+// Segment an isolated action from changes in wrist position and finger geometry.
+export class LiveSignSegment {
+  private history: MotionFrame[] = [];
+  private active: MotionFrame[] = [];
+  private lastMotion = 0;
+  private movements = 0;
+
+  reset() {
+    this.history = [];
+    this.active = [];
+    this.movements = 0;
+  }
+
+  private finish() {
+    const frames = this.active;
+    const usable = this.movements >= 2 && frames.length >= 5 &&
+      this.lastMotion - frames[0].time >= .35;
+    this.reset();
+    return usable ? frames : undefined;
+  }
+
+  update(frame: MotionFrame | undefined, time: number) {
+    const previous = this.history.at(-1);
+    if (!frame) {
+      if (previous && time - previous.time >= .3) return this.finish();
+      return;
+    }
+    if (previous && (previous.hand !== frame.hand || time - previous.time > .35)) this.reset();
+    const last = this.history.at(-1);
+    if (last && time - last.time < 1 / SAMPLE_HZ - 1e-6) return;
+    this.history = this.history.filter(f => time - f.time <= .32);
+    const reference = this.history[0];
+    this.history.push(frame);
+    if (reference) {
+      const wristShift = Math.hypot(frame.wrist[0]-reference.wrist[0],frame.wrist[1]-reference.wrist[1]) / frame.palm_size;
+      const shapeShift = Math.max(...frame.geometry.map((v,i)=>Math.abs(v-reference.geometry[i])));
+      if (wristShift >= .18 || shapeShift >= .18) {
+        if (!this.active.length) this.active = this.history.slice(0,-1);
+        this.lastMotion = time;
+        this.movements++;
+      }
+    }
+    if (!this.active.length) return;
+    this.active.push(frame);
+    if (time - this.active[0].time > MAX_SECONDS) { this.reset(); return; }
+    if (time - this.lastMotion >= .6) return this.finish();
+  }
+}
+
 export class SignClip {
   private frames: MotionFrame[] = [];
   private sampled = 0;
@@ -85,21 +153,8 @@ export class SignClip {
     this.lastSample = time;
     this.sampled++;
     if (result.landmarks.length !== 1 || result.worldLandmarks.length !== 1) return;
-    const [image] = result.landmarks;
-    const [world] = result.worldLandmarks;
-    const hand = result.handedness[0]?.[0]?.categoryName ?? '';
-    const wrist = image[0], middle = image[9];
-    try {
-      this.frames.push({
-        time, hand,
-        wrist: [wrist.x * aspect, wrist.y],
-        palm_size: Math.hypot((middle.x - wrist.x) * aspect, middle.y - wrist.y),
-        geometry: features(world, hand).geometry,
-      });
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-      // Count degenerate landmarks as missing samples.
-    }
+    const frame = readMotionFrame(result, time, aspect);
+    if (frame) this.frames.push(frame);
   }
 
   classify(model: SignModel) {
