@@ -1,114 +1,73 @@
-# CSIT5410: Static Number Gesture Recognition
+# Single-Hand Gesture Recognition
 
-A three-person CSIT5410 Recognition Systems group project: recognize static number gestures from a webcam, display the predicted number, and speak it in Cantonese.
+**English** · [繁體中文](README.zh-TW.md)
 
-## Project status
+A three-person CSIT5410 Recognition Systems project. The browser recognizes static digit poses **0–9** from one hand and uses the same hand tracker to recognize three isolated Hong Kong Sign Language (HKSL) words in motion. It displays the result and can play it in Cantonese, Mandarin, or English.
 
-**Phase 1 scaffold implemented.** The repository now includes a local browser workbench, shared geometric features, image-to-landmark extraction, participant-separated SVM/MLP training, and browser MLP inference. The initial interface supports one hand only. Real image data and Cantonese recordings are still pending; no real-data recognition results are claimed. See [the phase report](docs/phase-1-report.md).
+## Run the demo
 
-## MVP scope
-
-- Target numbers **1–10**, with a documented gesture-to-number mapping.
-- Prioritize hand shapes used in Chinese-speaking communities; check regional variants before assigning labels.
-- Recognize held, static poses. Frame smoothing is allowed; dynamic gesture recognition and continuous sign-language translation are outside the MVP.
-- Display a number and play a short Cantonese recording after confirmation or a stable prediction.
-- Handle missing hands and uncertain predictions without speaking; prevent repeated playback while a pose is held.
-
-The first version is a number-gesture recognizer, not a validated Hong Kong Sign Language translator. HKSL vocabulary is a possible future extension. Single-hand versus two-hand support will follow the chosen gesture definitions.
-
-## Planned recognition pipeline
-
-```mermaid
-flowchart LR
-    A[Camera image] --> B[MediaPipe Hand Landmarker]
-    B --> C[Normalization and geometric features]
-    C --> D[Lightweight classifier]
-    D --> E[Stability and rejection logic]
-    E --> F[Number display and Cantonese audio]
-```
-
-MediaPipe provides 21 estimated 3D landmarks per hand: 63 coordinate values. We will implement and evaluate the downstream feature engineering and classification ourselves.
-
-| Component | Planned approach |
-| --- | --- |
-| Landmarks | Pretrained MediaPipe Hand Landmarker |
-| Normalization | Wrist-relative coordinates and palm-scale normalization |
-| Geometric features | Finger joint angles, finger spread, normalized fingertip distances, palm normal |
-| Baseline | Standardized features with an SVM (implemented offline) |
-| Browser classifier | scikit-learn MLP (64, 32), exported as JSON; training data pending |
-| Offline processing | Python, NumPy, scikit-learn |
-| Browser interface | TypeScript + Vite; browser-side inference where feasible |
-| Audio | Prerecorded Cantonese numbers for the MVP |
-
-Preserve meaningful palm orientation when normalizing hand shape. Keep coordinate conventions, left/right-hand handling, feature order, and scaling identical during training and inference. A browser model export must be checked against Python predictions before use.
-
-## Image data plan
-
-Only image datasets are being considered for the initial training pipeline. Extract landmarks from the images and retain the original labels and source identifiers.
-
-| Candidate | What is known | Remaining checks |
-| --- | --- | --- |
-| [Chinese-number-gestures-recognition](https://github.com/tz28/Chinese-number-gestures-recognition) | Author reports 215 original photographs and 21,592 augmented images; project targets 0–10 | Download availability, actual class coverage, hand shapes, image quality, and permitted reuse |
-| [HaGRIDv2](https://github.com/hukenovs/hagrid) | Large RGB hand-gesture dataset with per-class downloads and subject IDs | Select only matching hand shapes, inspect labels and license terms, and avoid downloading the entire dataset unnecessarily |
-
-Other leads remain unverified. No dataset has been selected or downloaded as part of this repository setup. Augmented copies must not be counted as independent captures. Generic gesture labels must not be relabeled as numbers without checking the actual hand shapes.
-
-For each sample, retain where available: source dataset, original image ID, person ID, capture session, gesture variant, numeric label, and landmark extraction status. Record detection failures rather than silently dropping them from evaluation. Supplement missing classes and collect an independent test set if necessary.
-
-## Experiments and evaluation
-
-Compare three feature sets using the same classifier and data split:
-
-1. Normalized landmark coordinates.
-2. Engineered geometric features only.
-3. Coordinates combined with geometric features.
-
-Report accuracy, macro-F1, per-class confusion, landmark detection failure rate, end-to-end latency, and false or repeated audio triggers. Compare SVM and a small MLP after the feature baseline is established.
-
-Split by person where identifiers exist. Keep every original image and its augmented versions in the same split; augment only after splitting. If subject IDs are unavailable, document that limitation and use separately collected participants to assess generalization. Fit scalers and models on training data only, tune thresholds on validation data, and reserve test data for final evaluation.
-
-## Repository contents
-
-```text
-.
-├── web/                  # TypeScript browser workbench
-├── src/gesture/          # Python features, extraction, training
-├── scripts/              # Local asset setup and model parity check
-├── tests/                # Geometry, split isolation, state tests
-├── data/README.md        # Manifest and JSONL schema
-├── models/README.md      # Model artifact conventions
-├── docs/                 # Architecture and stage reports
-└── paper/                # ISBI paper starter
-```
-
-See [paper/README.md](paper/README.md) for the complete paper workflow and template provenance.
-
-## Getting started
-
-Clone using SSH:
+The commands below clone the current demo branch over SSH. For an existing checkout of that branch, start with `npm ci` from the repository root.
 
 ```bash
-git clone git@github.com:centaurus-xie/csit5410-hand-gesture-recognition.git
+git clone --branch dev/yr-xie git@github.com:centaurus-xie/csit5410-hand-gesture-recognition.git
 cd csit5410-hand-gesture-recognition
-```
-
-### Browser workbench
-
-Use a modern Node installation (tested locally with Node 25.9.0):
-
-```bash
 npm ci
 npm run assets
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173` and allow camera access. The first asset preparation downloads the official MediaPipe detector and copies WASM locally; camera frames are processed locally. Use localhost or HTTPS for camera access. The app has no backend or upload endpoint.
+Open the loopback URL printed by Vite, usually `http://127.0.0.1:5173`. Click **Start camera** and grant camera access. Asset setup downloads the MediaPipe model and copies its WebAssembly files. The branch includes the digit and sign classifiers. The browser displays recognition results before you set up Python or voice packs.
 
-The feature explorer and manual landmark capture work with the hand tracker alone. For live dataset collection, use the local project workflow below.
+To enable speech, generate the offline packs on macOS with the installed **Sinji**, **Tingting**, and **Samantha** system voices. The command uses Python 3 and writes WAV files to `web/public/audio/{yue,zh,en}/`. On other systems, copy those folders from a Mac that generated them. [Voice pack instructions](web/public/audio/README.md)
 
-### Python tools
+```bash
+npm run audio:generate
+```
 
-Use Python **3.11 or 3.12** in a project environment. On this machine, a Python 3.12 `.venv` has already been created; activate it with `source .venv/bin/activate`. For a new checkout:
+The updated generator in the working copy creates recordings for individual sign words as well as digits and the demo sentence. With an earlier generator, copy the complete WAV packs to enable individual word playback.
+
+## Use the workbench
+
+| Control | Behaviour |
+| --- | --- |
+| **Recognition → Numbers** | Hold a digit pose. When the same known digit scores at least 0.80 for 600 ms, the app confirms it. Automatic speech plays once per held pose when enabled. |
+| **Recognition → Sign words** | Make **多謝**, **下次**, or **再見**, one word at a time, then pause. The app detects the movement boundaries, classifies the clip, and shows the word. **Clip and model options** also accepts a local video or a manually bounded clip. |
+| **Recognition → Instruments** | Choose piano, guitar, or flute. Digits 1–9 play notes after a 120 ms hold. Digit 0 fades the current note. **Chord accompaniment** adds a triad. The keys can preview sounds without a camera. |
+| **Data entry** | Save a manually labelled pose or review a stable prediction before saving it. Set the participant, session, and split in **Session settings**. |
+
+**Voice language** applies to number and word playback. In sign mode, the accepted sequence **多謝 → 下次 → 再見** enables **Speak sentence** when the phrase recording is available. The sign vocabulary is limited to three isolated words. [HKSL recording references and clip format](docs/isolated-signs.md#classroom-vocabulary)
+
+## Recognition pipeline
+
+```mermaid
+flowchart LR
+    A[Camera frames] --> B[MediaPipe Hand Landmarker]
+    B --> C[Single pose]
+    B --> D[Movement segment]
+    C --> E["62 shape features → digit MLP → stability check"]
+    D --> F["16 steps × 22 features → sign MLP → score threshold"]
+```
+
+MediaPipe estimates 21 hand landmarks. The browser runs it in VIDEO mode on the CPU with detection, presence, and tracking thresholds of **0.60, 0.60, and 0.50**. It can detect up to two hands so the recognizer can accept observations with exactly one hand.
+
+- **Static digits.** Each frame becomes a 62-value `shape` vector containing 10 finger bend angles, 3 finger spread angles, 4 thumb-to-fingertip distances, and 45 pairwise distances among 10 anchors. The MLP has 64 and 32 hidden units and scores 0–9 plus `unknown`.
+- **Isolated signs.** The app detects movement from changes in hand geometry or wrist position. Each time step contains 20 geometric values, including palm orientation, and two wrist offsets from the start of the clip. Resampling to 16 steps gives the sign MLP **352 input values**. It confirms a word at a score of at least **0.80**.
+
+The TypeScript/Vite app runs inference and audio playback in the browser. Python, NumPy, and scikit-learn handle offline extraction, feature engineering, and training. [Browser features](web/src/features.ts) · [Sign segmentation](web/src/signs.ts) · [Python training](src/gesture/)
+
+## Evaluation snapshot
+
+| Run | Result |
+| --- | --- |
+| Previous digit model `bd58a350`, tracker group D | 22 of 23 clips had a correct first stable output |
+| Current digit model `8987cc5b`, tracker group D | 23 of 23 clips had a correct first stable output. 22 of 23 passed the separate strict frame-majority criterion |
+| Current sign model | Fit on 81 usable clips across the three words. Held-out signer accuracy has yet to be measured |
+
+The digit figures come from the same 23 development videos used for model selection. The first-stable metric scores the first digit that satisfies the confirmation rule in each clip. The frame-majority metric requires strictly more than half of the sampled frames in each clip to have the correct top prediction. The working copy contains the slide deck and experiment figures under `presentation/`. [Default digit model metadata](web/public/models/default-info.json) · [Course paper and reporting protocol](paper/README.md)
+
+## Collect samples and retrain
+
+Set up Python 3.11 or 3.12 for local project saves, training, and Python tests. The commands below use Python 3.12.
 
 ```bash
 python3.12 -m venv .venv
@@ -116,126 +75,34 @@ source .venv/bin/activate
 python -m pip install -e '.[images,dev]'
 ```
 
-The optional `requirements-macos-py312.txt` records the exact packages used for local validation. It is an environment snapshot, not a cross-platform lockfile.
+1. Run the app on localhost with `npm run dev`. In **Data entry → Session settings**, set the participant, session, and dataset split. Keep a participant in the same split across sessions.
+2. Select a label and click **Save sample** to capture the current pose. For automatic collection, enable **Record stable digits**, inspect the captured hand thumbnail, adjust the label if needed, and click **Confirm label**.
+3. Check the project save status below the camera controls. Confirmed landmarks are written to the local SQLite database at `data/local-captures/digits.sqlite3`. Use **Correct a confirmed label** to revise a saved label and **Retry project save** to retry pending writes. Camera frames and review thumbnails stay in the browser. The project writer runs on localhost, and the database stays local.
 
-Prepare an image manifest and participant splits as described in [data/README.md](data/README.md), then run:
+For a new checkout, create the base digit image artifacts with the first command below. It uses the MediaPipe files from `npm run assets`. Once you have at least one confirmed **Training** sample, the second command trains both the combined and shape candidates using the existing image split plus local training samples. Run the third command to check Python/browser parity for the shape candidate.
 
 ```bash
-gesture-extract data/manifest.csv --output data/samples.jsonl
-gesture-train data/samples.jsonl --splits data/splits.json --classifier svm --features combined --output artifacts/svm
-gesture-train data/samples.jsonl --splits data/splits.json --classifier mlp --features combined --output artifacts/mlp
-node --import tsx scripts/check-model-parity.mjs artifacts/mlp
+.venv/bin/python scripts/train_pilot.py --expanded
+npm run train:digits:local
+node --import tsx scripts/check-model-parity.mjs artifacts/digits-reviewed/mlp-shape
 ```
 
-Repeat experiments with `--features coordinates` and `--features geometry` on the same splits. The SVM is an offline baseline. Load `artifacts/mlp/classifier.json` through the browser's model picker for number recognition. The 0.8 score threshold and 600 ms hold are prototype defaults, not calibrated accuracy guarantees. Unknown gestures can still receive high confidence; evaluate rejection on real negatives before use.
+Open **Digit model settings → Choose another model…** to try the exported `classifier.json` in the current page. To promote a reviewed shape candidate to the default, run the command below. Refresh the page or click **Use latest default model**, then check **Active digit model**.
 
-Add licensed/consented Cantonese recordings to `web/public/audio/1.mp3` through `10.mp3`. Missing audio produces a visible error. Audio is not generated or bundled.
+```bash
+npm run model:publish -- artifacts/digits-reviewed/mlp-shape/classifier.json
+```
 
-### Checks
+Training outputs are local under `artifacts/`. For sources and gesture variants, see the [data format and variant guide](data/README.md#preparing-new-gesture-variants) and [paper bibliography](paper/references.bib). For a new sign model, follow the [clip extraction and training commands](docs/isolated-signs.md#run-the-local-pipeline).
+
+## Checks and course deliverables
 
 ```bash
 npm test
 npm run build
-python -m pytest -q
+.venv/bin/python -m pytest -q
 ```
 
-The production build is written to `web/dist/`. Local datasets, trained models, recordings, virtual environments, and downloaded WASM/model assets are ignored by Git.
+The production build is written to `web/dist/`. Use your team branch and open a pull request into `main`. SSH branches for the three contributors are `dev/yr-xie`, `dev/hy-shi`, and `dev/qs-li`.
 
-To build the existing paper, install a TeX distribution with `latexmk`, then run from the repository root:
-
-```bash
-cd paper
-mkdir -p .build
-latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=.build main.tex
-```
-
-The generated PDF is `paper/.build/main.pdf`. The current paper contains placeholders, not completed experiments.
-
-## Team workflow
-
-| Branch | Purpose |
-| --- | --- |
-| `main` | Reviewed, shared project state |
-| `dev/yr-xie` | Member development |
-| `dev/hy-shi` | Member development |
-| `dev/qs-li` | Member development |
-
-Work on your own branch and open a pull request into `main`. Configure your own Git identity so commits reflect their authors. Set upstream tracking on the first push with `git push -u origin <branch-name>`. All remote connections use SSH; repository owners perform pushes themselves.
-
-Suggested workstreams, with ownership to be agreed:
-
-- Data: define the gesture vocabulary, verify sources, curate images, and prepare independent splits.
-- Recognition: extract landmarks, implement features, train baselines, and evaluate errors.
-- Product: implement camera input, display predictions, and add Cantonese playback and trigger control.
-
-## Next milestones
-
-- [ ] Agree on an illustrated 1–10 gesture specification, including regional variants and hand count.
-- [ ] Verify and select image data; record source and reuse conditions.
-- [x] Add project dependency configuration and a tested local environment (see packaging caveat in phase report).
-- [ ] Run landmark extraction and inspect failures by class.
-- [x] Implement feature sets and baseline training/export tools.
-- [ ] Train and evaluate classifiers on approved real data.
-- [ ] Evaluate unseen participants and unknown gestures.
-- [ ] Integrate the browser demo and Cantonese audio.
-- [ ] Complete the paper, presentation, and references.
-
-## Course deliverables
-
-- Submit a PowerPoint and an **ISBI-format paper of at most 5 pages, including references**, via Canvas.
-- Submission deadline: **25 November 2026, 23:59 (Hong Kong time)**.
-- Presentation: **26 November 2026**, 15 minutes plus 3 minutes of Q&A.
-- Paper: Introduction, Method, Results, and Conclusion.
-- Cite pretrained models, methods, and datasets, and document the team's implementation effort.
-
-## References and reuse
-
-- [MediaPipe Hand Landmarker documentation](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker)
-- [Course-provided ISBI template](https://github.com/HenryVu27/ISBI2026/tree/main/ISBI_template-master/ISBI_template-master)
-
-The license in `paper/` belongs to the upstream template and does not license the whole project. Dataset and third-party asset terms must be checked separately before redistribution.
-
-### Default model and multilingual speech
-
-The page loads `web/public/models/default.json` on startup (without using a cached copy).
-Use **Change model** to try another local JSON, or **Use latest default model** to restore the published default. Local overrides last for this page session.
-
-```sh
-# Publish the chosen trained MLP for the website:
-npm run model:publish -- artifacts/pilot/mlp-combined/classifier.json
-# Or select the most recently modified valid classifier.json under artifacts (excluding smoke):
-npm run model:publish
-# Generate Cantonese, English and Mandarin 0–10 audio on macOS:
-npm run audio:generate
-```
-
-Voice language is remembered on this browser. **Preview voice** plays “one” without requiring a camera. Both manual and automatic number speech use the selected language. Audio does not change recognition classes.
-
-This is a static application with offline Python training, not a server backend. Model publication and audio generation supply the static assets. Generated assets are ignored by Git: teammates must generate them or receive copies of `web/public/models/default.json` and `web/public/audio/{yue,en,zh}/`. Windows/Linux can play these WAV files without macOS; generation uses installed macOS Sinji/Samantha/Tingting voices. Run asset preparation before building for distribution.
-
-See [Single-hand isolated sign extension](docs/isolated-signs.md) for the proposed vocabulary, capture format and model interface.
-
-### Play notes with number gestures
-
-Choose **Instruments** under **Camera mode**. Select piano, guitar, or flute.
-Tap the on-screen notes to preview each sound. Start the camera with the numeric
-classifier loaded to play notes using hand gestures.
-
-Digits 1–7 play Do–Si (C4–B4), 8–9 play the next Do and Re, and 0 stops the
-current note. Models that recognize 10 can also play the next Mi. Hold a pose
-briefly to play once. Release the pose or play another digit before repeating it.
-The browser synthesizes all sounds locally.
-
-### Save webcam digits directly to the project
-
-Start or restart the app with `npm run dev` on this computer and open the printed localhost address. Open **Data entry** and set Participant, Session and Dataset split in **Session settings**. Use a consistent participant ID and split across sessions. **Save sample** records a fresh set of landmarks under the label you select, including difficult poses the classifier misses. Alternatively, in Data entry enable **Record stable digits**, review each hand crop, correct the label if needed, then press **Confirm label**. Clear the pose between repeated digits.
-
-Both controls queue the sample in this browser and save confirmed landmarks to `data/local-captures/digits.sqlite3` on the computer running the local server. Wait for the project save confirmation. If a write failed or the tab closed mid-save, reopen the same address, select the split and press **Retry project save**. This also imports older confirmed cases still present in that browser. Each sample ID is stored once. Crops stay in browser storage. JSONL export is an optional backup. The local database is ignored by Git. A static deployment does not have the project writer.
-
-For the next training run, use the existing image samples and original split manifest in `artifacts/digits-0-9` together with all locally saved cases:
-
-```sh
-npm run train:digits:local
-```
-
-This trains the combined-feature MLP into `artifacts/digits-reviewed/mlp-combined` and checks browser prediction parity. Only local Training cases enter fitting. Validation and test cases are evaluated separately from the frozen image holdouts. Compare the candidate metrics before replacing the demo model. Digits with no stable emission require manual capture; stable-event samples alone measure correctness conditional on emission.
+Submit the PowerPoint and the ISBI-format paper via Canvas by **25 November 2026 at 23:59 Hong Kong time**. The paper limit is **five pages including references**. The **26 November** presentation is **15 minutes plus 3 minutes of Q&A**. [Paper build and submission instructions](paper/README.md)
