@@ -9,6 +9,7 @@
     "assets": "node scripts/prepare-assets.mjs",
     "test": "node --import tsx --test tests/*.test.ts",
     "model:publish": "node --import tsx scripts/publish-model.mjs",
+    "train:digits:local": ".venv/bin/python scripts/train_captures.py && node --import tsx scripts/check-model-parity.mjs artifacts/digits-reviewed/mlp-combined",
     "audio:generate": "python3 scripts/generate-audio.py"
   },
   "dependencies": {

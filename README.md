@@ -104,7 +104,7 @@ npm run dev
 
 Open `http://127.0.0.1:5173` and allow camera access. The first asset preparation downloads the official MediaPipe detector and copies WASM locally; camera frames are processed locally. Use localhost or HTTPS for camera access. The app has no backend or upload endpoint.
 
-You can inspect landmarks and geometric features without a number classifier. Enter a participant, session, and label to save samples, then export JSONL before closing the page. Sample collection is in memory; no raw image capture is included. Until a model is trained, the interface explicitly reports that no classifier is loaded.
+The feature explorer and manual landmark capture work with the hand tracker alone. For live dataset collection, use the local project workflow below.
 
 ### Python tools
 
@@ -214,3 +214,28 @@ Voice language is remembered on this browser. **Preview voice** plays “one” 
 This is a static application with offline Python training, not a server backend. Model publication and audio generation supply the static assets. Generated assets are ignored by Git: teammates must generate them or receive copies of `web/public/models/default.json` and `web/public/audio/{yue,en,zh}/`. Windows/Linux can play these WAV files without macOS; generation uses installed macOS Sinji/Samantha/Tingting voices. Run asset preparation before building for distribution.
 
 See [Single-hand isolated sign extension](docs/isolated-signs.md) for the proposed vocabulary, capture format and model interface.
+
+### Play notes with number gestures
+
+Choose **Instruments** under **Camera mode**. Select piano, guitar, or flute.
+Tap the on-screen notes to preview each sound. Start the camera with the numeric
+classifier loaded to play notes using hand gestures.
+
+Digits 1–7 play Do–Si (C4–B4), 8–9 play the next Do and Re, and 0 stops the
+current note. Models that recognize 10 can also play the next Mi. Hold a pose
+briefly to play once. Release the pose or play another digit before repeating it.
+The browser synthesizes all sounds locally.
+
+### Save webcam digits directly to the project
+
+Start or restart the app with `npm run dev` on this computer and open the printed localhost address. Open **Data entry** and set Participant, Session and Dataset split in **Session settings**. Use a consistent participant ID and split across sessions. **Save sample** records a fresh set of landmarks under the label you select, including difficult poses the classifier misses. Alternatively, in Data entry enable **Record stable digits**, review each hand crop, correct the label if needed, then press **Confirm label**. Clear the pose between repeated digits.
+
+Both controls queue the sample in this browser and save confirmed landmarks to `data/local-captures/digits.sqlite3` on the computer running the local server. Wait for the project save confirmation. If a write failed or the tab closed mid-save, reopen the same address, select the split and press **Retry project save**. This also imports older confirmed cases still present in that browser. Each sample ID is stored once. Crops stay in browser storage. JSONL export is an optional backup. The local database is ignored by Git. A static deployment does not have the project writer.
+
+For the next training run, use the existing image samples and original split manifest in `artifacts/digits-0-9` together with all locally saved cases:
+
+```sh
+npm run train:digits:local
+```
+
+This trains the combined-feature MLP into `artifacts/digits-reviewed/mlp-combined` and checks browser prediction parity. Only local Training cases enter fitting. Validation and test cases are evaluated separately from the frozen image holdouts. Compare the candidate metrics before replacing the demo model. Digits with no stable emission require manual capture; stable-event samples alone measure correctness conditional on emission.

@@ -31,4 +31,6 @@ def features(points, hand):
     normal = unit(np.cross(p[5]-p[0], p[17]-p[0]))
     geometry = np.array([*bends, *spread, *distances, *normal])
     coordinates = p.flatten()
-    return {'coordinates':coordinates, 'geometry':geometry, 'combined':np.concatenate([coordinates,geometry])}
+    anchors = p[[0,4,5,8,9,12,13,16,17,20]]
+    shape = np.r_[geometry[:17], [np.linalg.norm(a-b) for i,a in enumerate(anchors) for b in anchors[i+1:]]]
+    return {'shape':shape,'coordinates':coordinates, 'geometry':geometry, 'combined':np.concatenate([coordinates,geometry])}

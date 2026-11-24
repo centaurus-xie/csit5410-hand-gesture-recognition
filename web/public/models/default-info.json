@@ -1,0 +1,19 @@
+{
+  "source": "artifacts/evaluation/parameters-20261123/classifiers/shape-64-32/classifier.json",
+  "filename": "digits-mlp-shape_2026-11-24T03-10-14.403Z_8987cc5b.json",
+  "classes": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "unknown"
+  ],
+  "feature_set": "shape",
+  "published_at": "2026-11-24T03:10:14.403Z"
+}

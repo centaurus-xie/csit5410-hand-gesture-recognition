@@ -38,6 +38,8 @@ def load_splits(path, splits, feature_set):
         matches = [key for key,g in groups.items() if row.get('person_id') in g]
         if len(matches) != 1:
             raise ValueError(f'Participant {row.get("person_id")} missing from split configuration')
+        if 'dataset_split' in row and row['dataset_split'] != matches[0]:
+            raise ValueError(f'Recorded dataset split conflicts with participant split for {sample}')
         data[matches[0]].append((features(row['world_landmarks'],row['handedness'])[feature_set], row['label']))
     if any(not rows for rows in data.values()):
         raise ValueError('Every split must have usable samples')
