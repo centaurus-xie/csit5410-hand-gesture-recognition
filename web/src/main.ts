@@ -4,7 +4,7 @@ import {HandLandmarker,FilesetResolver,DrawingUtils} from '@mediapipe/tasks-visi
 import {features,type Point} from './features';
 import {predict,validateModel,StablePrediction,type Model} from './model';
 import { demoSequence, LiveSignSegment, motionVector, readMotionFrame, MAX_LIVE_CLIP_MS, readSignVideo, SignClip, signNames, validateSignModel, type SignModel } from './signs';
-import { InstrumentPlayer, instrumentOptions, noteForDigit, notes, type Note, type Timbre } from './instruments';
+import { InstrumentPlayer, chordDigits, chordForDegree, chordOctaves, chordQualities, defaultChordOctave, defaultChordQuality, instrumentOptions, noteForDigit, notes, type Note, type Timbre } from './instruments';
 const $=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 $('app').innerHTML=`
 <header class="site-header">
@@ -39,9 +39,9 @@ $('app').innerHTML=`
 <section id="music-controls" class="music-controls" aria-labelledby="music-heading" hidden>
  <h2 id="music-heading">Play the scale</h2>
  <label>Instrument<select id="instrument">${instrumentOptions.map(({id,name})=>`<option value="${id}">${name}</option>`).join('')}</select></label>
- <div class="toolbar"><label><input type="checkbox" id="chord-accompaniment">Chord accompaniment</label></div>
- <div class="note-keys" role="group" aria-label="Listen to a note">${notes.map(note=>`<button type="button" class="note-key" data-note="${note.digit}" aria-label="${note.digit}: ${note.name} ${note.pitch}"><strong>${note.digit}</strong><span>${note.name}</span><small>${note.pitch}</small></button>`).join('')}</div>
- <p class="small">Tap a key to preview it. Show 1–9 to play or 0 to rest.</p>
+ <div class="note-keys" id="scale-keys" role="group" aria-label="Listen to a note">${notes.map(note=>`<button type="button" class="note-key" data-note="${note.digit}" aria-label="${note.digit}: ${note.name} ${note.pitch}"><strong>${note.digit}</strong><span>${note.name}</span><small>${note.pitch}</small></button>`).join('')}</div>
+ <div class="note-keys" id="chord-keys" role="group" aria-label="Play a chord" hidden>${chordDigits.map(digit=>{const chord=chordForDegree(digit);const chosen=defaultChordQuality(digit);return `<div class="chord-cell"><button type="button" class="note-key" data-degree="${digit}"><strong>${digit}</strong><span></span><small></small></button><select data-degree="${digit}" data-control="quality" aria-label="Degree ${digit} type">${chordQualities.map(quality=>`<option value="${quality.id}"${quality.id===chosen?' selected':''}>${quality.label}</option>`).join('')}</select><select data-degree="${digit}" data-control="octave" aria-label="Degree ${digit} octave">${chordOctaves.map(octave=>`<option value="${octave}"${octave===defaultChordOctave?' selected':''}>${chord?.letter ?? ''}${octave}</option>`).join('')}</select></div>`;}).join('')}</div>
+ <p class="small" id="music-help">Tap a key to preview it. Show 1–9 to play or 0 to rest.</p>
  <p id="note-feedback" class="small" aria-live="polite"></p>
 </section><details id="digit-model-settings"><summary>Digit model settings</summary><p class="small">Active digit model</p><output id="active-model" class="active-model">Loading…</output><button type="button" id="choose-model" class="secondary">Choose another model…</button><input id="model" type="file" accept=".json" hidden><p class="small" id="model-status">Loading default model…</p><button id="default-model" class="secondary">Use latest default model</button></details></aside>
 ${reviewPanel}</div>
@@ -82,18 +82,56 @@ const message=(s:string)=>$('message').textContent=s;
 const cameraMode = $<HTMLSelectElement>('camera-mode');
 const player = new InstrumentPlayer();
 const instrument = $<HTMLSelectElement>('instrument');
-const chordAccompaniment = $<HTMLInputElement>('chord-accompaniment');
-const noteButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.note-key'));
+const noteButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('#scale-keys .note-key'));
+const chordButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('#chord-keys .note-key'));
 const noteFeedback = $('note-feedback');
+const chordsOn = () => instrument.value === 'accompaniment';
 
+function chordControl(digit: string, control: 'octave' | 'quality') {
+ return document.querySelector<HTMLSelectElement>(`#chord-keys select[data-degree="${digit}"][data-control="${control}"]`);
+}
+function octaveFor(digit: string) {
+ const octave = Number(chordControl(digit, 'octave')?.value);
+ return Number.isFinite(octave) ? octave : defaultChordOctave;
+}
+function qualityFor(digit: string) {
+ return chordControl(digit, 'quality')?.value || defaultChordQuality(digit);
+}
+function refreshChords() {
+ for (const button of chordButtons) {
+  const digit = button.dataset.degree ?? '';
+  const chord = chordForDegree(digit, octaveFor(digit), qualityFor(digit));
+  const name = button.querySelector('span');
+  const roman = button.querySelector('small');
+  if (name) name.textContent = chord?.name ?? '';
+  if (roman) roman.textContent = ['', 'I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'][Number(digit)] ?? '';
+  button.setAttribute('aria-label', `${digit}: ${chord?.name ?? ''}`);
+ }
+}
 function showNote(note: Note) {
- const withChord = chordAccompaniment.checked;
- const played = player.play(note, instrument.value as Timbre, withChord);
- const chord = withChord && note.chord ? ` + ${note.chord.name} chord` : '';
+ const played = player.play(note, instrument.value as Timbre);
  noteButtons.forEach(button => button.classList.toggle('is-playing', button.dataset.note === note.digit));
  noteFeedback.textContent = played
-  ? (note.midi === null ? 'Rest' : `${note.name} · ${note.pitch}${chord}`)
+  ? (note.midi === null ? 'Rest' : `${note.name} · ${note.pitch}`)
   : 'Tap a note to enable audio.';
+}
+async function showChord(digit: string) {
+ const chord = chordForDegree(digit, octaveFor(digit), qualityFor(digit));
+ if (!chord) return;
+ if (!(await player.enable())) { noteFeedback.textContent = 'Tap a chord to enable audio.'; return; }
+ const played = player.playChord(chord);
+ chordButtons.forEach(button => button.classList.toggle('is-playing', button.dataset.degree === digit));
+ noteFeedback.textContent = played ? `${digit} · ${chord.name}` : 'Tap a chord to enable audio.';
+}
+function syncInstrument() {
+ const chords = chordsOn();
+ $('scale-keys').hidden = chords;
+ $('chord-keys').hidden = !chords;
+ $('music-heading').textContent = chords ? 'Chords' : 'Play the scale';
+ $('music-help').textContent = chords
+  ? 'Verse is 1-6-4-3-2-5, twice. Choose a type and an octave for each chord.'
+  : 'Tap a key to preview it. Show 1–9 to play or 0 to rest.';
+ refreshChords();
 }
 
 for (const button of noteButtons) {
@@ -101,15 +139,24 @@ for (const button of noteButtons) {
   const note = noteForDigit(button.dataset.note ?? '');
   if (!note) return;
   if (note.midi !== null) await player.enable();
-  if (cameraMode.value === 'music') showNote(note);
+  if (cameraMode.value === 'music' && !chordsOn()) showNote(note);
  };
 }
-instrument.onchange = chordAccompaniment.onchange = () => {
+for (const button of chordButtons) {
+ button.onclick = () => { if (cameraMode.value === 'music' && chordsOn()) void showChord(button.dataset.degree ?? ''); };
+}
+instrument.onchange = () => {
  player.stop();
  noteButtons.forEach(button => button.classList.remove('is-playing'));
+ chordButtons.forEach(button => button.classList.remove('is-playing'));
  noteFeedback.textContent = '';
  musicGate.reset();
+ syncInstrument();
 };
+for (const select of Array.from(document.querySelectorAll<HTMLSelectElement>('#chord-keys select'))) {
+ select.onchange = () => { refreshChords(); };
+}
+refreshChords();
 
 const signStatus = $('sign-status');
 const signVideo = $<HTMLInputElement>('sign-video');
@@ -184,6 +231,7 @@ function updateCameraMode() {
  clearPrediction();
  player.stop();
  noteButtons.forEach(button => button.classList.remove('is-playing'));
+ chordButtons.forEach(button => button.classList.remove('is-playing'));
  noteFeedback.textContent = '';
  stopSpeech();
  $('music-controls').hidden = mode !== 'music';
@@ -195,7 +243,7 @@ function updateCameraMode() {
  $('auto-speech-label').textContent = signing ? 'Speak each recognized word' : 'Speak each stable prediction';
  const help = {
   signs: 'Make one sign, then pause briefly.',
-  music: 'Show a number gesture to play its note. Release your hand to repeat it.',
+  music: 'Show a number gesture to play its note. Chords uses gestures 1–7.',
   digits: 'Hold a number gesture to recognize it.',
  };
  $('status').textContent = help[mode as keyof typeof help];
@@ -391,7 +439,7 @@ function updateHandGuide(hands: Point[][], now: number) {
  if (now - guideSince >= 300 && handGuide.textContent !== hint) handGuide.textContent = hint;
 }
 
-function stop(){liveSign.reset();running=false;musicGate.reset();player.stop();noteButtons.forEach(button=>button.classList.remove('is-playing'));noteFeedback.textContent='';if(signRecording){signRecording=undefined;signStatus.textContent='Recording cancelled.';}updateSignControls();handGuide.hidden=true;pendingGuide='';cancelAnimationFrame(raf);stream?.getTracks().forEach(t=>t.stop());stream=undefined;video.srcObject=null;latest=null;lastVideoTime=-1;gate.reset();clearPrediction();clearFeatures();stopSpeech();ctx.clearRect(0,0,canvas.width,canvas.height);$('empty').hidden=false;$('camera-state').textContent='CAMERA OFF';$<HTMLButtonElement>('start').disabled=false;$<HTMLButtonElement>('stop').disabled=true;$<HTMLButtonElement>('capture').disabled=true;$('latency').textContent='—';}
+function stop(){liveSign.reset();running=false;musicGate.reset();player.stop();noteButtons.forEach(button=>button.classList.remove('is-playing'));chordButtons.forEach(button=>button.classList.remove('is-playing'));noteFeedback.textContent='';if(signRecording){signRecording=undefined;signStatus.textContent='Recording cancelled.';}updateSignControls();handGuide.hidden=true;pendingGuide='';cancelAnimationFrame(raf);stream?.getTracks().forEach(t=>t.stop());stream=undefined;video.srcObject=null;latest=null;lastVideoTime=-1;gate.reset();clearPrediction();clearFeatures();stopSpeech();ctx.clearRect(0,0,canvas.width,canvas.height);$('empty').hidden=false;$('camera-state').textContent='CAMERA OFF';$<HTMLButtonElement>('start').disabled=false;$<HTMLButtonElement>('stop').disabled=true;$<HTMLButtonElement>('capture').disabled=true;$('latency').textContent='—';}
 function stopSpeech() {
  const previous = audio;
  audio = null;
@@ -451,13 +499,16 @@ function frame(now:number){
      const prediction = predict(model, f[model.feature_set]);
      const eligible = prediction.confidence >= .8 && prediction.label !== 'unknown' ? prediction.label : null;
      if (cameraMode.value === 'music') {
-      const note = eligible === null ? undefined : noteForDigit(eligible);
-      const digit = note?.digit ?? null;
+      const chordMode = chordsOn();
+      const note = !chordMode && eligible !== null ? noteForDigit(eligible) : undefined;
+      const digit = chordMode ? (eligible !== null && /^[1-7]$/.test(eligible) ? eligible : null) : (note?.digit ?? null);
       const event = musicGate.update(digit, now);
-      if (note && event !== null) showNote(note);
+      if (event !== null) { if (chordMode) void showChord(event); else if (note) showNote(note); }
       const stable = digit !== null && musicGate.isStable(digit, now);
       $('result').textContent = stable ? digit : '—';
-      $('status').textContent = stable ? 'Change digits, or release your hand to repeat.' : 'Hold a number gesture to play its note.';
+      $('status').textContent = chordMode
+       ? (stable ? `Chord ${digit}. Release your hand to play it again.` : 'Hold 1–7. The verse is 1-6-4-3-2-5, twice.')
+       : (stable ? 'Change digits, or release your hand to repeat.' : 'Hold a number gesture to play its note.');
      } else {
       const event = gate.update(eligible, now);
       accepted = eligible !== null && gate.isStable(eligible, now) ? eligible : null;
