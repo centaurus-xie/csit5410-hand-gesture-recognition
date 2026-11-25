@@ -267,6 +267,9 @@ details[open] > summary { margin-bottom: 14px; }
 .fill { width: 100%; height: 0; background: var(--accent); transition: height .15s; }
 
 .note-keys { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 5px; margin-top: 14px; }
+#chord-keys { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.chord-cell { display: grid; gap: 4px; min-width: 0; }
+.chord-cell select { margin-top: 0; padding: 4px 2px; text-align: center; font: 11px var(--mono); }
 .note-key {
   display: grid;
   justify-items: center;
