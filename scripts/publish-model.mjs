@@ -1,6 +1,7 @@
 // Explicitly promote a validated model, or choose the most recently modified MLP export.
-import {readFile, readdir, stat, mkdir, copyFile, writeFile} from 'node:fs/promises';
+import {readFile, readdir, stat, mkdir, rename, writeFile} from 'node:fs/promises';
 import path from 'node:path';
+import {createHash,randomUUID} from 'node:crypto';
 import {validateModel} from '../web/src/model.ts';
 async function discover(dir){
  const result=[];
@@ -23,8 +24,20 @@ if(!source){
  if(!valid.length)throw Error('No valid trained MLP found. Train or pass a classifier.json path.');
  source=valid[0].file;
 }
-const model=validateModel(JSON.parse(await readFile(source,'utf8')));
-await mkdir('web/public/models',{recursive:true});
-await copyFile(source,'web/public/models/default.json');
-await writeFile('web/public/models/default-info.json',JSON.stringify({source,classes:model.classes,feature_set:model.feature_set,published_at:new Date().toISOString()},null,2));
-console.log(`Default model published: ${source}`);
+const bytes = await readFile(source);
+const model = validateModel(JSON.parse(bytes));
+const published = new Date().toISOString();
+const fingerprint = createHash('sha256').update(bytes).digest('hex').slice(0,8);
+const filename = `digits-mlp-${model.feature_set}_${published.replace(/:/g,'-')}_${fingerprint}.json`;
+const directory = 'web/public/models';
+await mkdir(directory,{recursive:true});
+const release = JSON.stringify({...model,release_name:filename});
+await writeFile(path.join(directory,filename),release);
+async function replaceFile(name,contents) {
+ const temp = path.join(directory,randomUUID()+'.tmp');
+ await writeFile(temp,contents);
+ await rename(temp,path.join(directory,name));
+}
+await replaceFile('default.json',release);
+await replaceFile('default-info.json',JSON.stringify({source,filename,classes:model.classes,feature_set:model.feature_set,published_at:published},null,2));
+console.log(`Published ${filename}`);

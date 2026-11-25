@@ -1,7 +1,9 @@
 # CSIT5410 project paper
 
-An editable starter for the group's static hand gesture recognition paper.
-The text contains explicit placeholders, not completed methods or results.
+An editable ISBI-format report of the single-hand digit recognition study.
+The results use the preserved expanded static experiment in
+`artifacts/digits-0-9/`. The author fields in `main.tex` must be confirmed
+before submission.
 
 Project repository: https://github.com/centaurus-xie/csit5410-hand-gesture-recognition
 
@@ -50,9 +52,9 @@ Edit assigned section files on your own branch. Commit the source files and
 figures, then open a pull request into `main`. Compile the full paper before
 merging. The `.gitignore` excludes build products and keeps source figures.
 
-Suggested initial division: one member drafts Introduction and related work,
-one drafts Method, and one drafts Results. The whole team reviews Abstract
-and Conclusion after the experiments. Adjust this to reflect actual contributions.
+The experiment's original split lists and detailed metrics are saved alongside
+the trained classifiers. The paper reports the frozen split used in that run.
+The current training script can stratify future runs by variant when data permit.
 
 ## Template provenance
 

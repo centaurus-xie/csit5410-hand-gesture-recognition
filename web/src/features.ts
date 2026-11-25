@@ -22,5 +22,7 @@ export function features(points:Point[],hand:string){
  const n=unit(cross(sub(p[5],p[0]),sub(p[17],p[0])));
  const geometry=[...bends,...spread,...distances,n.x,n.y,n.z];
  const coordinates=p.flatMap(v=>[v.x,v.y,v.z]);
- return {coordinates,geometry,combined:[...coordinates,...geometry],bends,normal:n};
+ const anchors=[0,4,5,8,9,12,13,16,17,20].map(i=>p[i]);
+ const shape=[...geometry.slice(0,17),...anchors.flatMap((a,i)=>anchors.slice(i+1).map(b=>norm(sub(a,b))))];
+ return {shape,coordinates,geometry,combined:[...coordinates,...geometry],bends,normal:n};
 }
